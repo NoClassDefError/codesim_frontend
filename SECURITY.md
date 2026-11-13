@@ -19,7 +19,10 @@ pull request, or social-media post before maintainers have had a reasonable
 opportunity to investigate it.
 
 Use GitHub's **Report a vulnerability** private reporting feature for the
-official CodeSim repository. Include:
+official CodeSim repository that contains the affected component: this
+repository for the VS Code extension and webviews, or the main CodeSim
+repository for the Python backend. If you are unsure, report it to either; the
+maintainers will route it. Include:
 
 - the affected version or commit;
 - the affected component and configuration;
@@ -46,7 +49,11 @@ Examples of security-relevant reports include:
 - unsafe handling of external processes, files, or messages;
 - exposure of secrets or sensitive local data;
 - malicious model or snapshot content escaping its intended boundary;
-- vulnerabilities in bundled frontend dependencies; and
+- vulnerabilities in bundled frontend dependencies;
+- webview content-security-policy bypasses or script injection through
+  system names, parameters, signal labels, or other backend-supplied data;
+- the extension launching an unintended interpreter or module, or passing
+  attacker-controlled arguments to the backend process; and
 - integrity defects that could silently substitute or tamper with analysis
   inputs or outputs.
 

@@ -1,12 +1,11 @@
 {
   "name": "codesim-frontend",
   "publisher": "hanchen-ge",
-  "displayName": "Codesim System Viewer",
-  "description": "Visualize CodeSim Python systems in a VS Code webview.",
+  "displayName": "CodeSim System Viewer",
+  "description": "Visualize, simulate, and analyze CodeSim Python systems in VS Code.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/NoClassDefError/codesim.git",
-    "directory": "frontend"
+    "url": "https://github.com/NoClassDefError/codesim.git"
   },
   "icon": "media/Icon.png",
   "license": "Apache-2.0",

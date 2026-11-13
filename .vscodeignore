@@ -5,9 +5,9 @@ out/test/**
 webview/**
 .gitignore
 .yarnrc
-vsc-extension-quickstart.md
-**/tsconfig.json
+**/tsconfig*.json
 **/eslint.config.mjs
 **/*.map
 **/*.ts
 **/.vscode-test.*
+*.log

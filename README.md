@@ -4,37 +4,45 @@
 
 # CodeSim VS Code extension
 
-This directory contains the VS Code extension host and the React webviews used for topology, parameters, signals, small-signal results, and interaction analysis.
+The CodeSim System Viewer is the VS Code front end for [CodeSim](https://github.com/NoClassDefError/codesim). It hosts the CodeSim Python backend and provides React webviews for topology, parameters, signals, small-signal results, and interaction analysis.
 
-## Structure
+This repository contains only the extension. The Python backend (`codesimpy`) lives in the main CodeSim repository and is installed separately.
 
-```text
-frontend/
-├─ src/
-│  ├─ extension.ts              Extension activation and Python process host
-│  └─ test/                     VS Code extension tests
-├─ webview/src/
-│  ├─ App.tsx                   Topology view
-│  ├─ SignalsApp.tsx            Signal and analysis view
-│  ├─ bridge/                   Typed VS Code message bridge
-│  ├─ components/               Toolbars, plots, tables, and panels
-│  ├─ model/                    Snapshot schema and view-model conversion
-│  └─ styles/                   Theme-aware webview styles
-├─ media/                       Extension logo and activity-bar icon
-├─ dist/                        Generated webview bundle
-├─ out/                         Generated extension host JavaScript
-└─ package.json                 Contributions, settings, and scripts
-```
+![CodeSim Signals view next to the System Viewer topology](media/screenshot-workbench.png)
 
-## User commands
+## Requirements
+
+- VS Code 1.140 or newer.
+- The [Microsoft Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) (installed automatically as a dependency).
+- A Python environment in which the `codesimpy` package from the CodeSim repository is importable.
+
+## Getting started
+
+1. Install the extension (see [Development](#development) to build a VSIX).
+2. Run `Python: Select Interpreter` and choose the environment that has `codesimpy`.
+3. Run `CodeSim: Select Backend Directory` if `codesimpy` is not in the open workspace.
+4. Open the **CodeSim** activity-bar container and press the power button to start the backend.
+5. Pick a system from the drop-down; it loads immediately.
+
+![System Viewer toolbar](media/screenshot-toolbar.png)
+
+## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `CodeSim: Select Backend Directory` | Select the project root or its `codesimpy` package directory |
 | `codesim: Open System Viewer` | Focus the topology view |
 | `codesim: Open Signals` | Open the signals and analysis panel |
+| `CodeSim: Select Backend Directory` | Select the project root or its `codesimpy` package directory |
+| `CodeSim: Select User Workspace Folder` | Select the folder scanned for user-defined `@system` classes |
 
-The extension uses the active interpreter selected by the Microsoft Python extension for the current workspace. Run `Python: Select Interpreter` to change it, then restart the CodeSim backend. There is no separate `codesim-frontend.pythonExecutable` setting. CodeSim contributes only the `codesim-frontend.backendPath` setting; when that path is unavailable, it also checks the open workspace folders.
+## Settings
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `codesim-frontend.backendPath` | empty | Path containing the `codesimpy` package. When empty or unavailable, the open workspace folders are checked. |
+| `codesim-frontend.userWorkspace` | empty | Folder scanned for user-defined `@system` classes. Empty uses the first workspace folder; relative paths are resolved against it. |
+
+The extension uses the interpreter selected by the Microsoft Python extension for the current workspace. There is no separate `pythonExecutable` setting; after changing the interpreter, restart the CodeSim backend.
 
 ## Runtime flow
 
@@ -48,15 +56,36 @@ The snapshot remains a persistent artifact; normal frontend/backend communicatio
 
 ## Interface behavior
 
-- **Topology View** shows backend power, system selection, Signals, refresh, automatic layout, and save-layout actions.
-- The VS Code status bar always shows whether the Python backend is stopped or running; its CodeSim indicator turns green while the backend process is active.
-- Choosing a system loads it immediately; there is no separate Load button.
-- **Signals View** contains Simulate, Small signal, and Interaction analysis actions.
+- **System Viewer** shows backend power, system selection, Signals, refresh, automatic layout, and save-layout actions, plus the system parameter editor and component inspector.
+- The VS Code status bar shows whether the Python backend is stopped or running; the CodeSim indicator turns green while the backend process is active.
+- **Signals View** contains Simulate, Small signal, and Interaction analysis actions, with tabs for time-domain results, voltage decomposition, small signal, and interaction analysis.
 - Four plots are created by default: bus voltage magnitude, line current, device active/reactive power, and bus voltage angle.
 - Users can add or close plots, select a plot, and assign signals from the right-hand list.
 - Trace colors are distinct within each plot.
-- Derived signals can calculate magnitude, power, or error from two chosen signals.
+- Calculated signals can derive magnitude, power, or error from two chosen signals.
 - Colors use VS Code theme variables for light and dark themes.
+
+## Repository layout
+
+```text
+.
+├─ src/
+│  ├─ extension.ts              Extension activation and Python process host
+│  └─ test/                     VS Code extension tests
+├─ webview/
+│  ├─ index.html                Vite entry page
+│  └─ src/
+│     ├─ App.tsx                Topology view
+│     ├─ SignalsApp.tsx         Signal and analysis view
+│     ├─ bridge/                Typed VS Code message bridge
+│     ├─ components/            Toolbars, plots, tables, and panels
+│     ├─ model/                 Snapshot schema, layout, and view-model conversion
+│     └─ styles.css             Theme-aware webview styles
+├─ media/                       Extension icon, activity-bar icon, and screenshots
+├─ dist/                        Generated webview bundle (not committed)
+├─ out/                         Generated extension host JavaScript (not committed)
+└─ package.json                 Contributions, settings, and scripts
+```
 
 ## Development
 
@@ -72,11 +101,14 @@ Compile the extension host and webview:
 npm run compile
 ```
 
-Run static checks:
+Run static checks and tests:
 
 ```powershell
 npm run lint
+npm test
 ```
+
+Press `F5` in VS Code to launch an Extension Development Host. `npm run watch` rebuilds the webview once and then recompiles the extension host on change; `npm run dev:webview` serves the webview through Vite.
 
 Build the VSIX:
 
@@ -84,14 +116,19 @@ Build the VSIX:
 npm run package:vsix
 ```
 
-The package is written as `codesim-frontend-<version>.vsix` in this directory.
+The package is written as `codesim-frontend-<version>.vsix` in the repository root.
 
 ## Important files
 
 - `src/extension.ts`: backend lifecycle, settings, stdio protocol, snapshots, and VS Code commands.
 - `webview/src/components/Toolbar.tsx`: topology and Signals toolbar actions.
 - `webview/src/components/WaveformPanel.tsx`: configurable waveform plots.
-- `webview/src/components/SignalSidebar.tsx`: signal assignment and derived-signal calculations.
+- `webview/src/components/SignalSidebar.tsx`: signal assignment and calculated signals.
 - `webview/src/components/SmallSignalPanel.tsx`: modes and symbolic expressions.
 - `webview/src/components/InteractionAnalysisPanel.tsx`: interaction matrices and modal shifts.
 - `webview/src/model/flowModel.ts`: converts backend descriptors to topology nodes, connections, and signals.
+- `webview/src/model/elkLayout.ts`: automatic topology layout with ELK.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). Bundled third-party components are listed in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES). Use of the CodeSim name and logo is covered by [TRADEMARKS.md](TRADEMARKS.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).

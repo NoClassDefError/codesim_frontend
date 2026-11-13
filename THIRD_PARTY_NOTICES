@@ -1,15 +1,16 @@
-CodeSim third-party notices
-===========================
+CodeSim VS Code extension third-party notices
+=============================================
 
-CodeSim is licensed under the Apache License, Version 2.0. This file records
-third-party software used by or incorporated into CodeSim. It does not change
+The CodeSim VS Code extension is licensed under the Apache License, Version
+2.0. This file records third-party software used by or incorporated into the
+extension. It does not change
 the license of any third-party component. Each component remains subject to its
 own license.
 
 Frontend runtime and bundled webview dependencies
 -------------------------------------------------
 
-The versions below are taken from `frontend/package-lock.json`. Development-only
+The versions below are taken from `package-lock.json`. Development-only
 tools are not incorporated into the runtime webview bundle and are not listed
 here. Their license metadata remains available in the lockfile and upstream
 packages.
@@ -38,6 +39,7 @@ packages.
 | d3-timer | 3.0.1 | ISC |
 | d3-transition | 3.0.1 | ISC |
 | d3-zoom | 3.0.0 | ISC |
+| elkjs | 0.12.1 | EPL-2.0 OR GPL-3.0-or-later |
 | katex | 0.19.0 | MIT |
 | react | 19.3.0 | MIT |
 | react-dom | 19.3.0 | MIT |
@@ -99,6 +101,17 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+elkjs -- EPL-2.0 OR GPL-3.0-or-later
+------------------------------------
+
+elkjs (https://github.com/kieler/elkjs) is the JavaScript build of the Eclipse
+Layout Kernel and is bundled into the webview for automatic topology layout.
+Copyright (c) Kiel University and others. It is dual-licensed; the extension
+uses it under the Eclipse Public License 2.0. The complete license text is in
+`node_modules/elkjs/LICENSE.md` and at https://www.eclipse.org/legal/epl-2.0/.
+The corresponding source code is available from the elkjs and Eclipse Layout
+Kernel (https://github.com/eclipse/elk) projects.
+
 d3-ease -- BSD-3-Clause
 -----------------------
 
@@ -131,22 +144,14 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Python runtime dependencies
----------------------------
+Python backend
+--------------
 
-CodeSim uses the following separately distributed Python packages:
-
-| Package | License | Project |
-| --- | --- | --- |
-| NumPy | BSD-3-Clause | https://numpy.org/ |
-| SciPy | BSD-3-Clause | https://scipy.org/ |
-| SymPy | BSD-3-Clause | https://www.sympy.org/ |
-
-These packages are not copied into the CodeSim source tree. Their installed
-distributions include their complete license texts, copyright notices, and
-notices for any libraries bundled in their binary wheels. Redistributors that
-bundle Python runtimes or wheels with CodeSim must also reproduce the notices
-from the exact distributions they ship.
+The extension starts the separately installed CodeSim Python backend
+(`codesimpy`) through the user's selected Python interpreter. No Python code or
+Python packages are included in this repository or in the VSIX. The backend's
+own dependencies (such as NumPy, SciPy, and SymPy) and their notices are
+documented in the main CodeSim repository.
 
 Maintenance note
 ----------------
