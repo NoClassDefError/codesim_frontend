@@ -1,0 +1,61 @@
+name: Release VSIX
+
+# On every push to main, build the extension and publish the .vsix to the
+# GitHub release for the current package.json version (v<version>).
+# - If that release doesn't exist yet, it is created.
+# - If it exists, its tag is moved to the pushed commit and the .vsix is replaced.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-vsix
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Read version
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "file=$NAME-$VERSION.vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Package VSIX
+        run: npm run package:vsix -- --out "${{ steps.meta.outputs.file }}"
+
+      - name: Publish to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          FILE: ${{ steps.meta.outputs.file }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Point the version tag at this commit.
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            gh release create "$TAG" "$FILE" --title "$TAG" --generate-notes
+          fi
