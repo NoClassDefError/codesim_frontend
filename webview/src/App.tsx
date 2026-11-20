@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEdgesState, useNodesState, type OnNodeDrag } from '@xyflow/react';
 import { onSystemSnapshot, requestSystemSnapshot, saveLayout } from './bridge/vscode';
 import { Inspector } from './components/Inspector';
+import { PowerFlowContext } from './components/PowerFlowContext';
 import { SystemTree } from './components/SystemTree';
 import { Toolbar } from './components/Toolbar';
 import { TopologyView } from './components/TopologyView';
@@ -26,6 +27,7 @@ export function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<SystemFlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<SystemFlowEdge>([]);
   const [selection, setSelection] = useState<Selection>(null);
+  const [showPowerFlow, setShowPowerFlow] = useState(true);
   // Latest canvas state, read by the asynchronous layout callbacks.
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
@@ -168,21 +170,26 @@ export function App() {
         onSaveLayout={saveCurrentLayout}
         showSignalsButton
         view="topology"
+        powerFlow={snapshot.powerFlow}
+        showPowerFlow={showPowerFlow}
+        onTogglePowerFlow={() => setShowPowerFlow((shown) => !shown)}
       />
 
       <section className="workspace viewer-workspace">
         <SystemTree snapshot={snapshot} selection={selection} onSelect={setSelection} />
         <div className="topology-stage">
           <div className="topology-panel">
-            <TopologyView
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeDragStart={onNodeDragStart}
-              onNodeDragStop={onNodeDragStop}
-              onSelectionChange={setSelection}
-            />
+            <PowerFlowContext.Provider value={{ powerFlow: snapshot.powerFlow, visible: showPowerFlow }}>
+              <TopologyView
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDragStop={onNodeDragStop}
+                onSelectionChange={setSelection}
+              />
+            </PowerFlowContext.Provider>
           </div>
           <Inspector
             snapshot={snapshot}

@@ -6,7 +6,7 @@
 
 The CodeSim System Viewer is the VS Code front end for [CodeSim](https://github.com/NoClassDefError/codesim). It hosts the CodeSim Python backend and provides React webviews for topology, parameters, signals, small-signal results, and interaction analysis.
 
-This repository contains only the extension. The Python backend (`codesimpy`) lives in the main CodeSim repository and is installed separately.
+This repository contains only the extension. The Python backend (`codesimpy`) lives in the main CodeSim repository and is installed separately, either with `pip install codesimpy` or as a source checkout.
 
 ![CodeSim Signals view next to the System Viewer topology](media/screenshot-workbench.png)
 
@@ -14,13 +14,13 @@ This repository contains only the extension. The Python backend (`codesimpy`) li
 
 - VS Code 1.140 or newer.
 - The [Microsoft Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) (installed automatically as a dependency).
-- A Python environment in which the `codesimpy` package from the CodeSim repository is importable.
+- A Python environment in which `codesimpy` is importable: installed with pip, or available as a source checkout.
 
 ## Getting started
 
 1. Install the extension (see [Development](#development) to build a VSIX).
-2. Run `Python: Select Interpreter` and choose the environment that has `codesimpy`.
-3. Run `CodeSim: Select Backend Directory` if `codesimpy` is not in the open workspace.
+2. Install the backend into a Python environment with `pip install codesimpy`, then run `Python: Select Interpreter` and choose that environment.
+3. Run `CodeSim: Select Backend` (or click the backend path in the sidebar) and choose **Installed package (pip)**, **Source checkout…**, or **Automatic**.
 4. Open the **CodeSim** activity-bar container and press the power button to start the backend.
 5. Pick a system from the drop-down; it loads immediately.
 
@@ -32,17 +32,28 @@ This repository contains only the extension. The Python backend (`codesimpy`) li
 | --- | --- |
 | `codesim: Open System Viewer` | Focus the topology view |
 | `codesim: Open Signals` | Open the signals and analysis panel |
-| `CodeSim: Select Backend Directory` | Select the project root or its `codesimpy` package directory |
+| `CodeSim: Select Backend` | Use the pip-installed `codesimpy`, a source checkout (project root or its `codesimpy` directory), or automatic detection |
 | `CodeSim: Select User Workspace Folder` | Select the folder scanned for user-defined `@system` classes |
 
 ## Settings
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `codesim-frontend.backendPath` | empty | Path containing the `codesimpy` package. When empty or unavailable, the open workspace folders are checked. |
+| `codesim-frontend.backendPath` | empty | Source checkout containing the `codesimpy` package. When empty or unavailable, the open workspace folders are checked. Leave empty to use a pip-installed backend. |
+| `codesim-frontend.useInstalledBackend` | `false` | Always run the `codesimpy` installed in the selected interpreter, ignoring `backendPath` and workspace checkouts. |
 | `codesim-frontend.userWorkspace` | empty | Folder scanned for user-defined `@system` classes. Empty uses the first workspace folder; relative paths are resolved against it. |
 
 The extension uses the interpreter selected by the Microsoft Python extension for the current workspace. There is no separate `pythonExecutable` setting; after changing the interpreter, restart the CodeSim backend.
+
+### Backend discovery
+
+When the backend starts, the extension looks for it in this order:
+
+1. A source checkout at `codesim-frontend.backendPath`.
+2. A source checkout in an open workspace folder (or its `codesim` subfolder).
+3. A `codesimpy` package installed in the selected interpreter (for example with pip). It is detected by checking whether that interpreter can import `codesimpy.api.cli`. The backend then runs in the user workspace folder.
+
+A source checkout takes precedence, so local edits are used during backend development. The Output panel (**CodeSim** channel) logs which backend was chosen.
 
 ## Runtime flow
 

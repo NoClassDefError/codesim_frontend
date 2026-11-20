@@ -6,6 +6,7 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import type { SystemFlowEdge, SystemFlowNode } from '../model/flowModel';
+import { formatPQ, usePowerFlow } from './PowerFlowContext';
 
 const PORT_STUB = 22;
 
@@ -60,6 +61,21 @@ export function RoutedEdge({
   const fallback = routed ? undefined : stubPath();
   const path = routed?.path ?? fallback!.path;
   const labelPosition = routed?.label ?? fallback!.label;
+
+  // Branch power flow at its sending end; the arrow points the way active
+  // power flows on screen. Load branches (unnamed) show it on the load symbol.
+  const powerFlow = usePowerFlow();
+  const branchFlow = data?.label && !data.ground ? powerFlow?.connections[id] : undefined;
+  let flowText: string | undefined;
+  if (branchFlow) {
+    const forward = branchFlow.P >= 0;
+    const dx = (targetX - sourceX) * (forward ? 1 : -1);
+    const dy = (targetY - sourceY) * (forward ? 1 : -1);
+    const arrow = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? '→' : '←') : (dy >= 0 ? '↓' : '↑');
+    flowText = forward
+      ? `${arrow} ${formatPQ(branchFlow.P, branchFlow.Q)}`
+      : `${arrow} ${formatPQ(-branchFlow.PTo, -branchFlow.QTo)}`;
+  }
 
   /** Route without a layout: out of each port, across at the midpoint or the user's waypoint. */
   function stubPath() {
@@ -147,6 +163,9 @@ export function RoutedEdge({
           }}
         >
           {data?.label}
+          {flowText && (
+            <div className={powerFlow?.converged ? 'edge-flow' : 'edge-flow warning'}>{flowText}</div>
+          )}
         </div>
 
         {selected && (

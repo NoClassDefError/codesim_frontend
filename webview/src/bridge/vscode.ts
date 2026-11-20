@@ -46,6 +46,11 @@ export function stopBackend(): void {
   vscode?.postMessage({ type: 'stopBackend' });
 }
 
+/** Ask the host to pick the CodeSim backend (codesimpy) directory. */
+export function selectBackendDirectory(): void {
+  vscode?.postMessage({ type: 'selectBackendDirectory' });
+}
+
 /** Ask the host to pick the folder scanned for user @system classes. */
 export function selectUserWorkspace(): void {
   vscode?.postMessage({ type: 'selectUserWorkspace' });
@@ -175,6 +180,8 @@ export interface BackendInfo {
   userWorkspace?: string;
   /** User files that failed to load in the last scan. */
   workspaceErrors?: number;
+  /** Backend directory in use (running) or that would be used (stopped). */
+  backendDirectory?: string;
 }
 
 export interface BackendStatus {

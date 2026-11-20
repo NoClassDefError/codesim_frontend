@@ -8,11 +8,12 @@ import {
   requestBackendInfo,
   runAnalysis,
   runRMS,
+  selectBackendDirectory,
   selectUserWorkspace,
   startBackend,
   stopBackend,
 } from '../bridge/vscode';
-import type { RMSSimulationDescriptor } from '../model/types';
+import type { PowerFlowDescriptor, RMSSimulationDescriptor } from '../model/types';
 
 /** Algebraic residual (inf-norm) above which the RMS solve is flagged. */
 const rmsResidualWarning = 1e-6;
@@ -37,6 +38,10 @@ interface Props {
   view?: 'topology' | 'signals';
   /** Latest RMS run, summarised in the RMS options popover. */
   rmsResult?: RMSSimulationDescriptor;
+  /** Power-flow solution drawn on the topology; the toggle shows when present. */
+  powerFlow?: PowerFlowDescriptor;
+  showPowerFlow?: boolean;
+  onTogglePowerFlow?: () => void;
 }
 
 export function Toolbar({
@@ -46,6 +51,9 @@ export function Toolbar({
   showSignalsButton = false,
   view = 'topology',
   rmsResult,
+  powerFlow,
+  showPowerFlow = false,
+  onTogglePowerFlow,
 }: Props) {
   const [systems, setSystems] = useState<string[]>([]);
   const [selectedSystem, setSelectedSystem] = useState('SMIB__GFM_A_C_LC');
@@ -54,6 +62,7 @@ export function Toolbar({
   const [activeAction, setActiveAction] = useState<string>();
   const [userWorkspace, setUserWorkspace] = useState<string>();
   const [workspaceErrors, setWorkspaceErrors] = useState(0);
+  const [backendDirectory, setBackendDirectory] = useState<string>();
   const [rmsCorrection, setRmsCorrection] = useState(rmsResult?.model === 'RMS+Delta');
   const [rmsCutoffText, setRmsCutoffText] = useState(String(rmsResult?.cutoff_Hz ?? 1000));
   const [rmsMaxStepText, setRmsMaxStepText] = useState('');
@@ -92,6 +101,7 @@ export function Toolbar({
       setRunning(info.running);
       setUserWorkspace(info.userWorkspace);
       setWorkspaceErrors(info.workspaceErrors ?? 0);
+      setBackendDirectory(info.backendDirectory);
     });
     const unsubscribeStatus = onBackendStatus((status) => {
       if (status.backendRunning !== undefined) {
@@ -159,18 +169,43 @@ export function Toolbar({
         {view === 'topology' && isInsideVsCode() && (
           <button
             type="button"
-            className={workspaceErrors > 0 ? 'toolbar-icon-button workspace-button has-errors' : 'toolbar-icon-button workspace-button'}
+            className={backendDirectory ? 'backend-dir-button' : 'backend-dir-button unset'}
+            onClick={selectBackendDirectory}
+            title={(backendDirectory
+              ? `Backend directory: ${backendDirectory}`
+              : 'No backend directory found (an installed codesimpy package is used if available)')
+              + '\nClick to choose the installed package or another directory'}
+            aria-label={backendDirectory
+              ? `Backend ${backendDirectory}, click to change`
+              : 'Choose the backend'}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z" />
+              <path d="m10 11-2 2 2 2M14 11l2 2-2 2" />
+            </svg>
+            <span><bdi>{backendDirectory ?? 'Select backend…'}</bdi></span>
+          </button>
+        )}
+        {view === 'topology' && isInsideVsCode() && (
+          <button
+            type="button"
+            className={'backend-dir-button workspace-button'
+              + (userWorkspace ? '' : ' unset')
+              + (workspaceErrors > 0 ? ' has-errors' : '')}
             onClick={selectUserWorkspace}
             title={(userWorkspace
               ? `User systems folder: ${userWorkspace}`
               : 'No user systems folder (open a folder or click to choose one)')
               + (workspaceErrors > 0 ? ` · ${workspaceErrors} file(s) failed to load, see the CodeSim output` : '')
               + '\nClick to choose another folder'}
-            aria-label="Choose the folder with user-defined systems"
+            aria-label={userWorkspace
+              ? `User systems folder ${userWorkspace}, click to change`
+              : 'Choose the folder with user-defined systems'}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-12Z" />
             </svg>
+            <span><bdi>{userWorkspace ?? 'Select folder…'}</bdi></span>
             {workspaceErrors > 0 && <i />}
           </button>
         )}
@@ -349,6 +384,27 @@ export function Toolbar({
                 <path d="M20 11a8 8 0 0 0-14.9-4M4 4v5h5M4 13a8 8 0 0 0 14.9 4M20 20v-5h-5" />
               </svg>
             </button>
+            {powerFlow?.available && onTogglePowerFlow && (
+              <button
+                type="button"
+                className={[
+                  'toolbar-icon-button power-flow-toggle',
+                  showPowerFlow ? 'active' : '',
+                  powerFlow.converged ? '' : 'has-errors',
+                ].join(' ').trim()}
+                onClick={onTogglePowerFlow}
+                title={`${showPowerFlow ? 'Hide' : 'Show'} the power flow`
+                  + ` (per unit on ${powerFlow.Sbase} VA)`
+                  + (powerFlow.converged ? '' : `\nPower flow did not converge: ${powerFlow.message}`)}
+                aria-label="Show or hide the power flow"
+                aria-pressed={showPowerFlow}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" />
+                </svg>
+                {!powerFlow.converged && <i />}
+              </button>
+            )}
             {onResetLayout && (
               <button
                 type="button"

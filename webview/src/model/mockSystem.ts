@@ -228,4 +228,24 @@ export const mockSystem: SystemSnapshot = {
       aBack: mockInteractionMatrix,
     },
   },
+  powerFlow: {
+    available: true,
+    converged: true,
+    message: 'The solution converged.',
+    residual: 1e-13,
+    Sbase: 1,
+    Vbase: 1,
+    buses: {
+      'bus-1': { V: 1, thetaDeg: 0 },
+      'bus-2': { V: 0.962, thetaDeg: -5.8 },
+    },
+    components: {
+      grid: { P: -0.49, Q: -0.12 },
+      'gfm-1': { P: 1.0, Q: 0.35 },
+      'load-1': { P: -0.5, Q: -0.2 },
+    },
+    connections: {
+      'line-12': { P: 0.51, Q: 0.23, PTo: 0.5, QTo: 0.2, I: 0.56, loss: 0.01 },
+    },
+  },
 };

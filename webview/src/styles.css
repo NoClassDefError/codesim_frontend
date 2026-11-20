@@ -132,6 +132,54 @@ body[data-view="viewer"] .dev-badge { padding: 1px 5px; font-size: 9px; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+.toolbar-actions .backend-dir-button {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 260px;
+  height: 28px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-descriptionForeground, #a0a0a0);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+.toolbar-actions .backend-dir-button:hover {
+  border-color: var(--vscode-toolbar-hoverOutline, transparent);
+  color: var(--vscode-foreground, #fff);
+  background: var(--vscode-toolbar-hoverBackground, var(--vscode-button-secondaryHoverBackground, #45494e));
+}
+.toolbar-actions .backend-dir-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 1px;
+}
+.toolbar-actions .backend-dir-button.unset {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+.backend-dir-button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.backend-dir-button span {
+  min-width: 0;
+  overflow: hidden;
+  /* Ellipsis on the left so the end of the path (the folder name) stays visible. */
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .toolbar-actions .backend-toggle.active {
   color: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #73c991));
   background: color-mix(
@@ -153,6 +201,11 @@ body[data-view="viewer"] .dev-badge { padding: 1px 5px; font-size: 9px; }
   background: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #73c991));
   box-shadow: 0 0 0 1px var(--vscode-sideBar-background, #252526);
 }
+.toolbar-actions .power-flow-toggle.active {
+  color: var(--vscode-focusBorder, #4aa8ff);
+  background: color-mix(in srgb, var(--vscode-focusBorder, #4aa8ff) 12%, transparent);
+}
+.power-flow-toggle.has-errors i,
 .workspace-button.has-errors i {
   position: absolute;
   right: 3px;
@@ -162,6 +215,12 @@ body[data-view="viewer"] .dev-badge { padding: 1px 5px; font-size: 9px; }
   border-radius: 50%;
   background: var(--vscode-editorWarning-foreground, #cca700);
   box-shadow: 0 0 0 1px var(--vscode-sideBar-background, #252526);
+}
+/* The workspace button is wide (it shows the path): keep the error dot on its folder icon. */
+.workspace-button.has-errors i {
+  right: auto;
+  bottom: 5px;
+  left: 15px;
 }
 .toolbar-button-group {
   display: flex;
@@ -556,6 +615,14 @@ body[data-view="viewer"] .toolbar-actions .toolbar-icon-button {
 .system-node-label.label-right { top: 2px; left: calc(100% + 6px); text-align: left; }
 .system-node-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 650; line-height: 1.2; }
 .system-node-kind { margin-top: 2px; color: var(--vscode-descriptionForeground, #a9b1ba); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.system-node-flow, .edge-flow {
+  margin-top: 2px;
+  color: var(--vscode-charts-blue, #4aa8ff);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.system-node-flow.warning, .edge-flow.warning { color: var(--vscode-editorWarning-foreground, #cca700); }
 
 .kind-grid .system-node-icon { color: var(--vscode-charts-yellow, #f0c36d); }
 .kind-gfm .system-node-icon, .kind-gfl .system-node-icon { color: var(--vscode-charts-blue, #6cb6ff); }

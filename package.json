@@ -58,7 +58,7 @@
       },
       {
         "command": "codesim-frontend.selectBackendDirectory",
-        "title": "CodeSim: Select Backend Directory"
+        "title": "CodeSim: Select Backend"
       },
       {
         "command": "codesim-frontend.selectUserWorkspace",
@@ -84,6 +84,11 @@
           "type": "string",
           "default": "",
           "description": "Path containing the codesimpy package. Empty uses the current workspace or its codesim directory."
+        },
+        "codesim-frontend.useInstalledBackend": {
+          "type": "boolean",
+          "default": false,
+          "description": "Always run the codesimpy package installed (pip) in the selected Python interpreter, ignoring backendPath and source checkouts in the workspace."
         },
         "codesim-frontend.userWorkspace": {
           "type": "string",

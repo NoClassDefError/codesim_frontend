@@ -255,6 +255,29 @@ export interface RMSSimulationDescriptor {
   maxQuasiStaticModeCount?: number;
 }
 
+/** Power-flow solution, per unit on the system base, keyed by descriptor id. */
+export interface PowerFlowDescriptor {
+  available: boolean;
+  converged: boolean;
+  message: string;
+  residual: number | null;
+  Sbase: number;
+  Vbase: number;
+  /** Bus voltage magnitude and angle. */
+  buses: Record<string, { V: number; thetaDeg: number }>;
+  /** Power each device injects into the network. */
+  components: Record<string, { P: number; Q: number }>;
+  /** Branch flow: P/Q leave the source end, PTo/QTo arrive at the target end. */
+  connections: Record<string, {
+    P: number;
+    Q: number;
+    PTo: number;
+    QTo: number;
+    I: number;
+    loss: number;
+  }>;
+}
+
 export interface SystemSnapshot {
   schemaVersion: number;
   system: {
@@ -271,6 +294,7 @@ export interface SystemSnapshot {
   smallSignal?: SmallSignalDescriptor;
   interactionAnalysis?: InteractionAnalysisDescriptor;
   rmsSimulation?: RMSSimulationDescriptor;
+  powerFlow?: PowerFlowDescriptor;
   layout?: SnapshotLayout;
 }
 

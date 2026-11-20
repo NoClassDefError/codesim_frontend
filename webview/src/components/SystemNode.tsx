@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { SystemFlowNode } from '../model/flowModel';
 import { GROUND_HEIGHT, GROUND_WIDTH, ICON_SIZE, kindLabels } from '../model/flowModel';
 import type { PortSide } from '../model/types';
+import { formatPQ, usePowerFlow } from './PowerFlowContext';
 
 /*
  * One-line diagram symbols. Every symbol fills its node box exactly and runs
@@ -160,6 +161,21 @@ export function SystemNode({ data, selected }: NodeProps<SystemFlowNode>) {
     ? 'above'
     : role === 'shunt' || data.hasGround ? 'right' : 'below';
 
+  // Power flow: bus voltage, device injection, or the branch drawn as a load.
+  const powerFlow = usePowerFlow();
+  let flow: string | undefined;
+  if (powerFlow && role === 'bus') {
+    const bus = powerFlow.buses[component.id];
+    flow = bus && `${bus.V.toFixed(3)} ∠ ${bus.thetaDeg.toFixed(1)}°`;
+  } else if (powerFlow && data.selectAs?.kind === 'connection') {
+    // A branch to ground drawn as a load: it absorbs S_from - S_to whichever end is the bus.
+    const branch = powerFlow.connections[data.selectAs.id];
+    flow = branch && formatPQ(branch.P - branch.PTo, branch.Q - branch.QTo);
+  } else if (powerFlow && role !== 'ground') {
+    const device = powerFlow.components[component.id];
+    flow = device && formatPQ(device.P, device.Q);
+  }
+
   return (
     <div
       className={`system-node role-${role} kind-${component.kind} ${selected ? 'selected' : ''}`}
@@ -176,6 +192,11 @@ export function SystemNode({ data, selected }: NodeProps<SystemFlowNode>) {
         <div className={`system-node-label label-${labelPlacement}`}>
           <div className="system-node-name">{component.name}</div>
           <div className="system-node-kind">{kindLabels[component.kind]}</div>
+          {flow && (
+            <div className={powerFlow?.converged ? 'system-node-flow' : 'system-node-flow warning'}>
+              {flow}
+            </div>
+          )}
         </div>
       )}
     </div>
