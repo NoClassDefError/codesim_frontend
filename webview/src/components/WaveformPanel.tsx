@@ -510,6 +510,7 @@ export function WaveformPanel({ snapshot }: Props) {
   const [plots, setPlots] = useState<PlotDefinition[]>(() => defaultPlots(snapshot.signals));
   const [selectedPlotId, setSelectedPlotId] = useState('plot-voltage');
   const [selectedSignalId, setSelectedSignalId] = useState('');
+  const [sidebarWidth, setSidebarWidth] = useState(260);
   const [derivedDefinitions, setDerivedDefinitions] = useState<DerivedSignalDefinition[]>([]);
   const [layoutSystemId, setLayoutSystemId] = useState(snapshot.system.id);
   const [layoutInitialized, setLayoutInitialized] = useState(snapshot.signals.length > 0);
@@ -765,7 +766,10 @@ export function WaveformPanel({ snapshot }: Props) {
   }, []);
 
   return (
-    <section className="signals-workspace">
+    <section
+      className="signals-workspace"
+      style={{ gridTemplateColumns: `minmax(0, 1fr) 4px ${sidebarWidth}px` }}
+    >
       <section className="waveform-panel" aria-label="Simulation plots">
         <div className="waveform-header">
           <div className="waveform-title">
@@ -840,6 +844,31 @@ export function WaveformPanel({ snapshot }: Props) {
           ))}
         </div>
       </section>
+      <div
+        className="panel-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the signal list"
+        title="Drag to resize · double-click to reset"
+        onDoubleClick={() => setSidebarWidth(260)}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          const startX = event.clientX;
+          const startWidth = sidebarWidth;
+          // The sidebar is on the right: dragging left widens it.
+          const move = (moveEvent: PointerEvent) => setSidebarWidth(
+            Math.round(Math.min(700, Math.max(160, startWidth - (moveEvent.clientX - startX)))),
+          );
+          const stop = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', stop);
+            document.body.classList.remove('panel-resizing');
+          };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', stop);
+          document.body.classList.add('panel-resizing');
+        }}
+      />
       <SignalSidebar
         systemName={snapshot.system.name}
         components={snapshot.components}

@@ -21,13 +21,33 @@
     "onCommand:codesim-frontend.openViewer",
     "onCommand:codesim-frontend.openSignals",
     "onCommand:codesim-frontend.selectBackendDirectory",
-    "onView:codesim-frontend.viewer"
+    "onView:codesim-frontend.viewer",
+    "onLanguage:codesim-spice"
   ],
   "extensionDependencies": [
     "ms-python.python"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "codesim-spice",
+        "aliases": ["SPICE (CodeSim)", "codesim-spice"],
+        "extensions": [".cir"],
+        "icon": {
+          "light": "./media/cir-light.svg",
+          "dark": "./media/cir-dark.svg"
+        },
+        "configuration": "./syntaxes/codesim-spice.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "codesim-spice",
+        "scopeName": "source.spice.codesim",
+        "path": "./syntaxes/codesim-spice.tmLanguage.json"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -63,8 +83,22 @@
       {
         "command": "codesim-frontend.selectUserWorkspace",
         "title": "CodeSim: Select User Workspace Folder"
+      },
+      {
+        "command": "codesim-frontend.newNetlist",
+        "title": "CodeSim: New Netlist System",
+        "icon": "$(new-file)"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "codesim-frontend.newNetlist",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@10"
+        }
+      ]
+    },
     "colors": [
       {
         "id": "codesim.backendRunningForeground",
@@ -93,7 +127,7 @@
         "codesim-frontend.userWorkspace": {
           "type": "string",
           "default": "",
-          "description": "Folder scanned for user-defined @system classes. Empty uses the first VS Code workspace folder. Relative paths are resolved against that folder."
+          "description": "Folder scanned for user-defined @system classes and .cir netlists. Empty uses the first VS Code workspace folder. Relative paths are resolved against that folder."
         }
       }
     }

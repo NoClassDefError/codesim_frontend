@@ -6,7 +6,8 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+/* VS Code injects `body { padding: 0 20px }` into webviews; remove it so panels fill the view. */
+html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
 button, select { font: inherit; }
 
 .app-shell {
@@ -273,6 +274,11 @@ body[data-view="viewer"] .dev-badge { padding: 1px 5px; font-size: 9px; }
   stroke-linejoin: round;
 }
 .toolbar-analysis-button.primary svg path { fill: currentColor; stroke: none; }
+.toolbar-actions .toolbar-analysis-button.stop {
+  color: var(--vscode-errorForeground, #f48771);
+  border-color: currentColor;
+}
+.toolbar-analysis-button.stop svg rect { fill: currentColor; stroke: none; }
 .toolbar-split-button {
   position: relative;
   display: inline-flex;
@@ -403,14 +409,43 @@ body[data-view="viewer"] .toolbar-actions .toolbar-icon-button {
   overflow: auto;
   background: var(--vscode-sideBar-background, #252526);
 }
-.tree-panel { border-right: 1px solid var(--vscode-panel-border, #3c3c3c); }
-.inspector-panel {
+/* Splitter between the system panel and the canvas (width set by App). */
+.panel-resizer {
+  cursor: col-resize;
+  background: var(--vscode-panel-border, #3c3c3c);
+  touch-action: none;
+}
+.panel-resizer:hover, .panel-resizing .panel-resizer {
+  background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4));
+}
+body.panel-resizing { cursor: col-resize; user-select: none; }
+/* Floating inspector: width set by App, resized from its left edge. */
+.inspector-dock {
   position: absolute;
   top: 12px;
   right: 12px;
   z-index: 5;
-  width: min(300px, calc(100% - 24px));
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
+}
+.inspector-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  z-index: 1;
+  width: 6px;
+  cursor: col-resize;
+  border-radius: 3px;
+  touch-action: none;
+}
+.inspector-resizer:hover { background: var(--vscode-sash-hoverBorder, var(--vscode-focusBorder, #007fd4)); }
+.toolbar-actions .toolbar-icon-button.active:not(.backend-toggle) { color: var(--vscode-foreground, #ddd); }
+.toolbar-icon-button svg .panel-fill { fill: currentColor; stroke: none; opacity: .55; }
+.inspector-panel {
+  min-height: 0;
   padding-bottom: 16px;
   border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, #454545));
   border-radius: 6px;
@@ -1470,14 +1505,11 @@ body[data-view="viewer"] .toolbar-actions .toolbar-icon-button {
 .interaction-empty p { color: var(--vscode-descriptionForeground, #aaa); }
 
 @media (max-width: 1250px) {
-  .viewer-workspace { grid-template-columns: 210px minmax(0, 1fr); }
   .signals-workspace { grid-template-columns: minmax(0, 1fr) 230px; }
   .small-signal-content { grid-template-columns: minmax(620px, 1fr); }
   .interaction-content { grid-template-columns: minmax(620px, 1fr); }
 }
 
 @media (max-width: 850px) {
-  .viewer-workspace { grid-template-columns: minmax(0, 1fr); }
-  .tree-panel { display: none; }
   .signals-workspace { grid-template-columns: minmax(0, 1fr) 210px; }
 }

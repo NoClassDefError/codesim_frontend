@@ -33,7 +33,8 @@ This repository contains only the extension. The Python backend (`codesimpy`) li
 | `codesim: Open System Viewer` | Focus the topology view |
 | `codesim: Open Signals` | Open the signals and analysis panel |
 | `CodeSim: Select Backend` | Use the pip-installed `codesimpy`, a source checkout (project root or its `codesimpy` directory), or automatic detection |
-| `CodeSim: Select User Workspace Folder` | Select the folder scanned for user-defined `@system` classes |
+| `CodeSim: Select User Workspace Folder` | Select the folder scanned for user-defined `@system` classes and `.cir` netlists |
+| `CodeSim: New Netlist System` | Create a runnable `.cir` template in the user workspace (or, from the Explorer context menu, in the clicked folder) and open it |
 
 ## Settings
 
@@ -41,7 +42,7 @@ This repository contains only the extension. The Python backend (`codesimpy`) li
 | --- | --- | --- |
 | `codesim-frontend.backendPath` | empty | Source checkout containing the `codesimpy` package. When empty or unavailable, the open workspace folders are checked. Leave empty to use a pip-installed backend. |
 | `codesim-frontend.useInstalledBackend` | `false` | Always run the `codesimpy` installed in the selected interpreter, ignoring `backendPath` and workspace checkouts. |
-| `codesim-frontend.userWorkspace` | empty | Folder scanned for user-defined `@system` classes. Empty uses the first workspace folder; relative paths are resolved against it. |
+| `codesim-frontend.userWorkspace` | empty | Folder scanned for user-defined `@system` classes and `.cir` netlists. Empty uses the first workspace folder; relative paths are resolved against it. |
 
 The extension uses the interpreter selected by the Microsoft Python extension for the current workspace. There is no separate `pythonExecutable` setting; after changing the interpreter, restart the CodeSim backend.
 
@@ -75,6 +76,7 @@ The snapshot remains a persistent artifact; normal frontend/backend communicatio
 - Trace colors are distinct within each plot.
 - Calculated signals can derive magnitude, power, or error from two chosen signals.
 - Colors use VS Code theme variables for light and dark themes.
+- `.cir` netlist files (CodeSim's SPICE format, see the codesimpy guide) get syntax highlighting, `*` comment toggling, bracket matching and completion of cards, elements, built-in models with their parameters and references, `.options` keys, node and parameter names, `@xname[state]` and expression functions (language `SPICE (CodeSim)`). Saving a `.cir` file rescans the user workspace.
 
 ## Repository layout
 
@@ -82,6 +84,7 @@ The snapshot remains a persistent artifact; normal frontend/backend communicatio
 .
 ├─ src/
 │  ├─ extension.ts              Extension activation and Python process host
+│  ├─ netlist.ts                .cir template and completion provider
 │  └─ test/                     VS Code extension tests
 ├─ webview/
 │  ├─ index.html                Vite entry page
@@ -93,6 +96,7 @@ The snapshot remains a persistent artifact; normal frontend/backend communicatio
 │     ├─ model/                 Snapshot schema, layout, and view-model conversion
 │     └─ styles.css             Theme-aware webview styles
 ├─ media/                       Extension icon, activity-bar icon, and screenshots
+├─ syntaxes/                    TextMate grammar and language configuration for .cir netlists
 ├─ dist/                        Generated webview bundle (not committed)
 ├─ out/                         Generated extension host JavaScript (not committed)
 └─ package.json                 Contributions, settings, and scripts

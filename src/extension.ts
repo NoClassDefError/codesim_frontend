@@ -3,16 +3,18 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { netlistCompletionProvider, netlistLanguageId, netlistTemplate } from './netlist';
 
 const extensionNamespace = 'codesim-frontend';
 const viewerCommandId = `${extensionNamespace}.openViewer`;
 const signalsCommandId = `${extensionNamespace}.openSignals`;
 const selectBackendCommandId = `${extensionNamespace}.selectBackendDirectory`;
 const selectUserWorkspaceCommandId = `${extensionNamespace}.selectUserWorkspace`;
+const newNetlistCommandId = `${extensionNamespace}.newNetlist`;
 const userWorkspaceSetting = 'userWorkspace';
 /** When true, always run the codesimpy package installed in the selected interpreter. */
 const useInstalledBackendSetting = 'useInstalledBackend';
-/** Wait this long after the last .py change before rescanning the user workspace. */
+/** Wait this long after the last .py or .cir change before rescanning the user workspace. */
 const workspaceRescanDelay_ms = 500;
 const viewerViewId = `${extensionNamespace}.viewer`;
 const backendStatusColorId = 'codesim.backendRunningForeground';
@@ -194,6 +196,10 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 		vscode.commands.registerCommand(selectBackendCommandId, () => host.selectBackendDirectory()),
 		vscode.commands.registerCommand(selectUserWorkspaceCommandId, () => host.selectUserWorkspace()),
+		vscode.commands.registerCommand(newNetlistCommandId, (folder?: vscode.Uri) => host.createNetlist(folder)),
+		vscode.languages.registerCompletionItemProvider(
+			{ language: netlistLanguageId }, netlistCompletionProvider, '.', '@', '[', '{', ' ', '=',
+		),
 	);
 }
 
@@ -284,6 +290,38 @@ class CodeSimHost {
 		return firstFolder?.fsPath;
 	}
 
+	/**
+	 * Write a runnable netlist template into `folder` (Explorer context menu) or
+	 * the user workspace, and open it. The file name is the system id.
+	 */
+	async createNetlist(folder?: vscode.Uri): Promise<void> {
+		const directory = folder?.fsPath ?? this.userWorkspace();
+		if (!directory) {
+			void vscode.window.showErrorMessage(
+				'CodeSim: open a trusted folder or select a user workspace folder first.',
+			);
+			return;
+		}
+		const name = await vscode.window.showInputBox({
+			title: 'New CodeSim netlist system',
+			prompt: `File name in ${directory}; it becomes the system id`,
+			value: 'MyNetlistSystem',
+			validateInput: (value) => {
+				if (!/^[A-Za-z_]\w*$/.test(value)) {
+					return 'Use letters, digits and _ (not starting with a digit).';
+				}
+				return fs.existsSync(path.join(directory, `${value}.cir`)) ? `${value}.cir already exists.` : undefined;
+			},
+		});
+		if (!name) {
+			return;
+		}
+		const file = path.join(directory, `${name}.cir`);
+		await fs.promises.writeFile(file, netlistTemplate.replace('${title}', name), { flag: 'wx' });
+		await vscode.window.showTextDocument(vscode.Uri.file(file));
+		this.log('workspace', `created netlist ${file}`);
+	}
+
 	async selectUserWorkspace(): Promise<void> {
 		const firstFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
 		const current = this.userWorkspace();
@@ -371,7 +409,7 @@ class CodeSimHost {
 		}
 	}
 
-	/** Rescan on .py changes in the user workspace (debounced, only while idle). */
+	/** Rescan on .py and .cir changes in the user workspace (debounced, only while idle). */
 	private watchUserWorkspace(): void {
 		this.disposeWorkspaceWatcher();
 		const workspace = this.userWorkspace();
@@ -379,7 +417,7 @@ class CodeSimHost {
 			return;
 		}
 		const watcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(vscode.Uri.file(workspace), '**/*.py'),
+			new vscode.RelativePattern(vscode.Uri.file(workspace), '**/*.{py,cir}'),
 		);
 		const schedule = () => {
 			if (this.workspaceRescanTimer) {
@@ -602,6 +640,16 @@ class CodeSimHost {
 			case 'runRMS':
 				await this.runRMS(message);
 				break;
+			case 'stopSimulation':
+				// The backend cuts the run at the last finished sample and answers the
+				// running request normally, so runBackend completes as usual.
+				if (this.activeAction === 'simulation' || this.activeAction === 'rms') {
+					this.log('run', 'stop requested');
+					this.request('simulation.stop', {}).catch((error: unknown) => {
+						this.log('run', `stop failed: ${error instanceof Error ? error.message : String(error)}`);
+					});
+				}
+				break;
 			case 'updateSystemParameter':
 				this.updateSystemParameter(message.parameterName, message.parameterValue);
 				break;
@@ -619,6 +667,9 @@ class CodeSimHost {
 				break;
 			case 'selectBackendDirectory':
 				await this.selectBackendDirectory();
+				break;
+			case 'newNetlist':
+				await this.createNetlist();
 				break;
 		}
 	}
@@ -1107,6 +1158,18 @@ class CodeSimHost {
 	private async handleBackendMessage(message: BackendResponse): Promise<void> {
 		if (message.type) {
 			this.logStreamEvent(message);
+			// Warnings raised while the backend built a model (e.g. buses reduced by local DAE->ODE).
+			if (message.type === 'model.warnings') {
+				const items = Array.isArray(message.warnings) ? message.warnings.map(String) : [];
+				for (const item of items) {
+					this.output.appendLine(`[warning] ${String(message.systemName ?? '')}: ${item}`);
+				}
+				if (items.length) {
+					const summary = items.length === 1 ? items[0] : `${items.length} warnings: ${items.join(' | ')}`;
+					void vscode.window.showWarningMessage(`CodeSim ${String(message.systemName ?? '')}: ${summary}`);
+				}
+				return;
+			}
 			if (message.type === 'simulation.started' && this.isSystemSnapshot(this.currentSnapshot)) {
 				(this.currentSnapshot as Record<string, unknown>).signals = [];
 			}
@@ -1321,48 +1384,30 @@ class CodeSimHost {
 			return;
 		}
 
-		const temporaryUri = vscode.Uri.file(`${snapshotUri.fsPath}.CodeSim-layout.tmp`);
+		// The snapshot is a MATLAB v7.3 file: the backend writes the layout into it.
 		try {
-			const contents = await vscode.workspace.fs.readFile(snapshotUri);
-			const document = JSON.parse(Buffer.from(contents).toString('utf8')) as unknown;
-			if (!document || typeof document !== 'object') {
-				throw new Error('The snapshot root is not a JSON object.');
-			}
-			const root = document as Record<string, unknown>;
-			const descriptor = root.frontendDescriptor &&
-				typeof root.frontendDescriptor === 'object'
-				? root.frontendDescriptor as Record<string, unknown>
-				: root;
-			descriptor.layout = layout;
-			const serialized = Buffer.from(`${JSON.stringify(document, null, 2)}\n`, 'utf8');
-			await vscode.workspace.fs.writeFile(temporaryUri, serialized);
-			await vscode.workspace.fs.rename(temporaryUri, snapshotUri, { overwrite: true });
-			const savedPath = snapshotUri.fsPath;
-			this.log('layout', `saved topology layout (${serialized.byteLength} bytes) to ${savedPath}`);
-			const openFile = 'Open file';
+			const result = await this.request<Record<string, unknown>>('layout.save', { layout });
+			const savedUri = typeof result.snapshotFile === 'string'
+				? vscode.Uri.file(result.snapshotFile)
+				: snapshotUri;
+			this.currentSnapshotUri = savedUri;
+			const savedPath = savedUri.fsPath;
+			this.log('layout', `saved topology layout to ${savedPath}`);
 			const reveal = 'Reveal in file explorer';
 			const copyPath = 'Copy path';
 			void vscode.window.showInformationMessage(
 				`Saved topology layout to ${savedPath}`,
-				openFile,
 				reveal,
 				copyPath,
 			).then(async (choice) => {
-				if (choice === openFile) {
-					await vscode.window.showTextDocument(snapshotUri);
-				} else if (choice === reveal) {
-					await vscode.commands.executeCommand('revealFileInOS', snapshotUri);
+				if (choice === reveal) {
+					await vscode.commands.executeCommand('revealFileInOS', savedUri);
 				} else if (choice === copyPath) {
 					await vscode.env.clipboard.writeText(savedPath);
 				}
 			});
 		} catch (error) {
 			const detail = error instanceof Error ? error.message : String(error);
-			try {
-				await vscode.workspace.fs.delete(temporaryUri);
-			} catch {
-				// The temporary file may not have been created.
-			}
 			this.log('layout', `failed to save to ${snapshotUri.fsPath}: ${detail}`);
 			void vscode.window.showErrorMessage(
 				`Unable to save the topology layout to ${snapshotUri.fsPath}: ${detail}`,
@@ -1497,6 +1542,10 @@ class SignalsPanel {
 				localResourceRoots: [distUri],
 			},
 		);
+		panel.iconPath = {
+			light: vscode.Uri.joinPath(context.extensionUri, 'media', 'signals-light.svg'),
+			dark: vscode.Uri.joinPath(context.extensionUri, 'media', 'signals-dark.svg'),
+		};
 		SignalsPanel.current = new SignalsPanel(panel, context, host);
 	}
 

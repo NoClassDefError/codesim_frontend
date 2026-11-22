@@ -56,6 +56,11 @@ export function selectUserWorkspace(): void {
   vscode?.postMessage({ type: 'selectUserWorkspace' });
 }
 
+/** Ask the host to create a .cir netlist template in the user workspace. */
+export function newNetlist(): void {
+  vscode?.postMessage({ type: 'newNetlist' });
+}
+
 export function loadSystemDescriptor(systemName: string): void {
   vscode?.postMessage({ type: 'loadSystemDescriptor', systemName });
 }
@@ -78,6 +83,11 @@ export interface RMSRunOptions {
 
 export function runRMS(systemName: string, options: RMSRunOptions): void {
   vscode?.postMessage({ type: 'runRMS', systemName, ...options });
+}
+
+/** Stop the running EMT or RMS simulation; the samples finished so far are kept. */
+export function stopSimulation(): void {
+  vscode?.postMessage({ type: 'stopSimulation' });
 }
 
 export function updateSystemParameter(name: string, value: ParameterValue): void {

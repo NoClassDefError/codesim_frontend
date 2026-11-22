@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   isInsideVsCode,
   loadSystemDescriptor,
+  newNetlist,
   onBackendInfo,
   onBackendStatus,
   openSignalsView,
@@ -12,6 +13,7 @@ import {
   selectUserWorkspace,
   startBackend,
   stopBackend,
+  stopSimulation,
 } from '../bridge/vscode';
 import type { PowerFlowDescriptor, RMSSimulationDescriptor } from '../model/types';
 
@@ -42,6 +44,11 @@ interface Props {
   powerFlow?: PowerFlowDescriptor;
   showPowerFlow?: boolean;
   onTogglePowerFlow?: () => void;
+  /** System panel (left) and inspector (right): shown, and their toggles. */
+  treeOpen?: boolean;
+  onToggleTree?: () => void;
+  inspectorOpen?: boolean;
+  onToggleInspector?: () => void;
 }
 
 export function Toolbar({
@@ -54,6 +61,10 @@ export function Toolbar({
   powerFlow,
   showPowerFlow = false,
   onTogglePowerFlow,
+  treeOpen = true,
+  onToggleTree,
+  inspectorOpen = true,
+  onToggleInspector,
 }: Props) {
   const [systems, setSystems] = useState<string[]>([]);
   const [selectedSystem, setSelectedSystem] = useState('SMIB__GFM_A_C_LC');
@@ -209,6 +220,23 @@ export function Toolbar({
             {workspaceErrors > 0 && <i />}
           </button>
         )}
+        {view === 'topology' && isInsideVsCode() && (
+          <button
+            type="button"
+            className="toolbar-icon-button"
+            onClick={newNetlist}
+            disabled={!userWorkspace}
+            title={userWorkspace
+              ? `New netlist system (.cir) in ${userWorkspace}`
+              : 'New netlist system: select a user systems folder first'}
+            aria-label="New netlist system"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8l-5-5Z" />
+              <path d="M14 3v5h5M12 11v6M9 14h6" />
+            </svg>
+          </button>
+        )}
         <select
           aria-label="System class"
           value={selectedSystem}
@@ -328,6 +356,19 @@ export function Toolbar({
                 </div>
               )}
             </div>
+            {running && (activeAction === 'simulation' || activeAction === 'rms') && (
+              <button
+                type="button"
+                className="toolbar-analysis-button stop"
+                onClick={stopSimulation}
+                title="Stop the simulation and keep the samples computed so far"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="6" y="6" width="12" height="12" rx="1.5" />
+                </svg>
+                Stop
+              </button>
+            )}
             <button
               type="button"
               className="toolbar-analysis-button"
@@ -403,6 +444,38 @@ export function Toolbar({
                   <path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" />
                 </svg>
                 {!powerFlow.converged && <i />}
+              </button>
+            )}
+            {onToggleTree && (
+              <button
+                type="button"
+                className={treeOpen ? 'toolbar-icon-button active' : 'toolbar-icon-button'}
+                onClick={onToggleTree}
+                title={`${treeOpen ? 'Hide' : 'Show'} the system panel`}
+                aria-label="Show or hide the system panel"
+                aria-pressed={treeOpen}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                  <path d="M9 4v16" />
+                  {treeOpen && <path className="panel-fill" d="M4.5 5.5h3v13h-3z" />}
+                </svg>
+              </button>
+            )}
+            {onToggleInspector && (
+              <button
+                type="button"
+                className={inspectorOpen ? 'toolbar-icon-button active' : 'toolbar-icon-button'}
+                onClick={onToggleInspector}
+                title={`${inspectorOpen ? 'Hide' : 'Show'} the inspector`}
+                aria-label="Show or hide the inspector"
+                aria-pressed={inspectorOpen}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                  <path d="M15 4v16" />
+                  {inspectorOpen && <path className="panel-fill" d="M16.5 5.5h3v13h-3z" />}
+                </svg>
               </button>
             )}
             {onResetLayout && (

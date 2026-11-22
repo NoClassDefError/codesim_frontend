@@ -1,0 +1,171 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SPICE (CodeSim)",
+  "scopeName": "source.spice.codesim",
+  "fileTypes": ["cir"],
+  "patterns": [
+    { "include": "#title" },
+    { "include": "#comments" },
+    { "include": "#continuation" },
+    { "include": "#cards" },
+    { "include": "#elements" },
+    { "include": "#body" }
+  ],
+  "repository": {
+    "title": {
+      "comment": "SPICE rule: the first line of a netlist is always its title.",
+      "match": "\\A.*$",
+      "name": "markup.heading.title.spice"
+    },
+    "comments": {
+      "patterns": [
+        { "match": "^\\s*\\*.*$", "name": "comment.line.asterisk.spice" },
+        { "match": ";.*$", "name": "comment.line.semicolon.spice" },
+        { "match": "(?<=\\s)\\$\\s.*$", "name": "comment.line.dollar.spice" }
+      ]
+    },
+    "continuation": {
+      "match": "^\\s*(\\+)",
+      "captures": { "1": { "name": "punctuation.separator.continuation.spice" } }
+    },
+    "cards": {
+      "patterns": [
+        {
+          "comment": "File name after .include / .hdl.",
+          "match": "^\\s*(\\.(?i:include|inc|hdl))\\s+(\\S+)",
+          "captures": {
+            "1": { "name": "keyword.control.import.spice" },
+            "2": { "name": "string.unquoted.path.spice" }
+          }
+        },
+        {
+          "match": "^\\s*(\\.(?i:title))\\b(.*)$",
+          "captures": {
+            "1": { "name": "keyword.control.card.spice" },
+            "2": { "name": "markup.heading.title.spice" }
+          }
+        },
+        {
+          "comment": ".meas tran <name> WHEN ...: the measure name is also the event time in PWL knots.",
+          "match": "^\\s*(\\.(?i:meas|measure))\\s+((?i:tran))\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.card.spice" },
+            "2": { "name": "keyword.other.analysis.spice" },
+            "3": { "name": "entity.name.function.measure.spice" }
+          }
+        },
+        {
+          "match": "^\\s*(\\.(?i:options|option|opt|param|params|tran|probe|save|end))\\b",
+          "captures": { "1": { "name": "keyword.control.card.spice" } }
+        },
+        {
+          "comment": "Other SPICE cards are not supported by CodeSim.",
+          "match": "^\\s*(\\.\\w+)",
+          "captures": { "1": { "name": "invalid.illegal.unsupported-card.spice" } }
+        }
+      ]
+    },
+    "elements": {
+      "patterns": [
+        {
+          "comment": "Xname node+ node- Model: a CodeSim device.",
+          "match": "^\\s*([Xx]\\w*)\\s+([^\\s=]+)\\s+([^\\s=]+)\\s+([\\w.]+)(?!\\s*=)",
+          "captures": {
+            "1": { "name": "entity.name.tag.device.spice" },
+            "2": { "name": "variable.other.node.spice" },
+            "3": { "name": "variable.other.node.spice" },
+            "4": { "name": "entity.name.type.model.spice" }
+          }
+        },
+        {
+          "comment": "Rname / Lname / Cname node1 node2 value.",
+          "match": "^\\s*([RrLlCc]\\w*)\\s+([^\\s=]+)\\s+([^\\s=]+)",
+          "captures": {
+            "1": { "name": "entity.name.tag.passive.spice" },
+            "2": { "name": "variable.other.node.spice" },
+            "3": { "name": "variable.other.node.spice" }
+          }
+        },
+        {
+          "comment": "Element letters CodeSim does not support.",
+          "match": "^\\s*([A-WYZa-wyz]\\w*)(?=\\s)",
+          "captures": { "1": { "name": "invalid.illegal.unsupported-element.spice" } }
+        }
+      ]
+    },
+    "body": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#braceExpression" },
+        { "include": "#quotedExpression" },
+        {
+          "match": "\\b((?i:params:|when|rise|fall|cross|from|tran|uic))(?=[\\s=]|$)",
+          "captures": { "1": { "name": "keyword.other.spice" } }
+        },
+        {
+          "match": "\\b([A-Za-z_]\\w*)\\s*(?==)",
+          "captures": { "1": { "name": "variable.parameter.name.spice" } }
+        },
+        { "include": "#expression" }
+      ]
+    },
+    "braceExpression": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.spice" } },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.spice" } },
+      "name": "meta.embedded.expression.spice",
+      "patterns": [{ "include": "#expression" }]
+    },
+    "quotedExpression": {
+      "comment": "HSPICE: 'expr' is an expression.",
+      "begin": "'",
+      "end": "'",
+      "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.spice" } },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.spice" } },
+      "name": "meta.embedded.expression.spice",
+      "patterns": [{ "include": "#expression" }]
+    },
+    "expression": {
+      "patterns": [
+        { "include": "#braceExpression" },
+        {
+          "comment": "ngspice device internal: @xname[state].",
+          "match": "(@)(\\w+)(\\[)\\s*(\\w+)\\s*(\\])",
+          "captures": {
+            "1": { "name": "punctuation.definition.variable.spice" },
+            "2": { "name": "entity.name.tag.device.spice" },
+            "3": { "name": "punctuation.section.brackets.begin.spice" },
+            "4": { "name": "variable.other.member.state.spice" },
+            "5": { "name": "punctuation.section.brackets.end.spice" }
+          }
+        },
+        {
+          "comment": "Output functions: V(n) VM(n) VP(n) I(R|L) IM(R|L) P(n) Q(n).",
+          "match": "\\b((?i:vm|vp|v|im|i|p|q))\\s*(\\()\\s*([\\w.+-]+)\\s*(\\))",
+          "captures": {
+            "1": { "name": "support.function.output.spice" },
+            "2": { "name": "punctuation.section.parens.begin.spice" },
+            "3": { "name": "variable.other.node.spice" },
+            "4": { "name": "punctuation.section.parens.end.spice" }
+          }
+        },
+        {
+          "match": "\\b((?i:pwl|par|sqrt|exp|log10|log|sin|cos|tan|atan2|atan|abs|min|max|pow|hypot|wrap))(?=\\s*\\()",
+          "captures": { "1": { "name": "support.function.spice" } }
+        },
+        { "match": "\\b(?i:pi|time)\\b", "name": "constant.language.spice" },
+        {
+          "comment": "Numbers with an engineering suffix (f p n u m k meg mil g t) and optional unit letters.",
+          "match": "(?<![\\w.])((?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)((?i:meg|mil|[fpnumkgt])?[A-Za-z]*)",
+          "captures": {
+            "1": { "name": "constant.numeric.spice" },
+            "2": { "name": "keyword.other.unit.suffix.spice" }
+          }
+        },
+        { "match": "\\*\\*|[-+*/^]", "name": "keyword.operator.arithmetic.spice" },
+        { "match": "=", "name": "keyword.operator.assignment.spice" }
+      ]
+    }
+  }
+}

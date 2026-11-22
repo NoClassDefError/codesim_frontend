@@ -28,6 +28,24 @@ export function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<SystemFlowEdge>([]);
   const [selection, setSelection] = useState<Selection>(null);
   const [showPowerFlow, setShowPowerFlow] = useState(true);
+  // Side panels: visibility and width (px), remembered per webview in localStorage.
+  const [panels, setPanels] = useState<{
+    treeOpen: boolean; treeWidth: number; inspectorOpen: boolean; inspectorWidth: number;
+  }>(() => {
+    const defaults = { treeOpen: true, treeWidth: 280, inspectorOpen: true, inspectorWidth: 300 };
+    try {
+      return { ...defaults, ...JSON.parse(window.localStorage.getItem('codesim.panels') ?? '{}') };
+    } catch {
+      return defaults;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('codesim.panels', JSON.stringify(panels));
+    } catch {
+      // storage unavailable: the layout is just not remembered
+    }
+  }, [panels]);
   // Latest canvas state, read by the asynchronous layout callbacks.
   const nodesRef = useRef(nodes);
   const edgesRef = useRef(edges);
@@ -173,10 +191,46 @@ export function App() {
         powerFlow={snapshot.powerFlow}
         showPowerFlow={showPowerFlow}
         onTogglePowerFlow={() => setShowPowerFlow((shown) => !shown)}
+        treeOpen={panels.treeOpen}
+        onToggleTree={() => setPanels((current) => ({ ...current, treeOpen: !current.treeOpen }))}
+        inspectorOpen={panels.inspectorOpen}
+        onToggleInspector={() => setPanels((current) => ({ ...current, inspectorOpen: !current.inspectorOpen }))}
       />
 
-      <section className="workspace viewer-workspace">
-        <SystemTree snapshot={snapshot} selection={selection} onSelect={setSelection} />
+      <section
+        className="workspace viewer-workspace"
+        style={{ gridTemplateColumns: panels.treeOpen ? `${panels.treeWidth}px 4px minmax(0, 1fr)` : 'minmax(0, 1fr)' }}
+      >
+        {panels.treeOpen && (
+          <>
+            <SystemTree snapshot={snapshot} selection={selection} onSelect={setSelection} />
+            <div
+              className="panel-resizer"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize the system panel"
+              title="Drag to resize · double-click to reset"
+              onDoubleClick={() => setPanels((current) => ({ ...current, treeWidth: 280 }))}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                const startX = event.clientX;
+                const startWidth = panels.treeWidth;
+                const move = (moveEvent: PointerEvent) => setPanels((current) => ({
+                  ...current,
+                  treeWidth: Math.round(Math.min(700, Math.max(160, startWidth + moveEvent.clientX - startX))),
+                }));
+                const stop = () => {
+                  window.removeEventListener('pointermove', move);
+                  window.removeEventListener('pointerup', stop);
+                  document.body.classList.remove('panel-resizing');
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', stop);
+                document.body.classList.add('panel-resizing');
+              }}
+            />
+          </>
+        )}
         <div className="topology-stage">
           <div className="topology-panel">
             <PowerFlowContext.Provider value={{ powerFlow: snapshot.powerFlow, visible: showPowerFlow }}>
@@ -191,17 +245,46 @@ export function App() {
               />
             </PowerFlowContext.Provider>
           </div>
-          <Inspector
-            snapshot={snapshot}
-            selection={selection}
-            connectionPorts={selectedEdge ? {
-              sourceSide: selectedEdge.data?.sourceSide,
-              targetSide: selectedEdge.data?.targetSide,
-              sourceAutomatic: !selectedEdge.data?.sourceSideLocked,
-              targetAutomatic: !selectedEdge.data?.targetSideLocked,
-            } : undefined}
-            onConnectionPortChange={changeConnectionPort}
-          />
+          {panels.inspectorOpen && (
+            <div className="inspector-dock" style={{ width: panels.inspectorWidth }}>
+              <div
+                className="inspector-resizer"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize the inspector"
+                title="Drag to resize · double-click to reset"
+                onDoubleClick={() => setPanels((current) => ({ ...current, inspectorWidth: 300 }))}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  const startX = event.clientX;
+                  const startWidth = panels.inspectorWidth;
+                  const move = (moveEvent: PointerEvent) => setPanels((current) => ({
+                    ...current,
+                    inspectorWidth: Math.round(Math.min(800, Math.max(220, startWidth - (moveEvent.clientX - startX)))),
+                  }));
+                  const stop = () => {
+                    window.removeEventListener('pointermove', move);
+                    window.removeEventListener('pointerup', stop);
+                    document.body.classList.remove('panel-resizing');
+                  };
+                  window.addEventListener('pointermove', move);
+                  window.addEventListener('pointerup', stop);
+                  document.body.classList.add('panel-resizing');
+                }}
+              />
+              <Inspector
+                snapshot={snapshot}
+                selection={selection}
+                connectionPorts={selectedEdge ? {
+                  sourceSide: selectedEdge.data?.sourceSide,
+                  targetSide: selectedEdge.data?.targetSide,
+                  sourceAutomatic: !selectedEdge.data?.sourceSideLocked,
+                  targetAutomatic: !selectedEdge.data?.targetSideLocked,
+                } : undefined}
+                onConnectionPortChange={changeConnectionPort}
+              />
+            </div>
+          )}
         </div>
       </section>
     </main>
