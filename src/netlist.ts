@@ -100,7 +100,16 @@ const cards: [string, string, string][] = [
 	['.param', '.param ${1:name}=${2:value}', 'Parameters (editable in CodeSim)'],
 	['.tran', '.tran ${1:0.1m} ${2:1}', 'Output step and end time: tstep tstop [tstart [tmax]]'],
 	['.meas', '.meas tran ${1:event} WHEN ${2:expr}=${3:0} ${4|RISE,FALL,CROSS|}=1 FROM=${5:0}', 'State-triggered event'],
+	['.meas MAX', '.meas tran ${1:name} ${2|MAX,MIN,AVG,RMS,PP,INTEG|} ${3:vm(node)} FROM=${4:0} TO=${5:1}', 'Post-run measurement over a window'],
+	['.meas FIND', '.meas tran ${1:name} FIND ${2:vm(node)} ${3|AT=0.5,WHEN expr=0 RISE=1|}', 'Post-run value at a time or crossing'],
+	['.meas TRIG', '.meas tran ${1:name} TRIG ${2:expr}=${3:0} RISE=1 TARG ${4:expr}=${5:0} RISE=1', 'Post-run time between two crossings'],
+	['.meas PARAM', '.meas tran ${1:name} PARAM {${2:expr}}', 'Post-run expression of other measurements'],
 	['.probe', '.probe tran ${1:name}=par(\'${2:expr}\')', 'Extra output signals'],
+	['.model', '.model ${1:name} ${2:Model}(${3:par=value})', 'Device with default parameters (ako:other derives from a model)'],
+	['.subckt', '.subckt ${1:name} ${2:pin1} ${3:pin2} params: ${4:a=1}\n$0\n.ends ${1:name}', 'Subcircuit of R, L, C and X cards'],
+	['.func', '.func ${1:name}(${2:x}) {${3:x}}', 'User function of its arguments and .param values'],
+	['.lib', '.lib ${1:file.lib} ${2:section}', 'Read .model / .subckt / .param / .func cards of a library'],
+	['.global', '.global ${1:node}', 'Node shared by every subcircuit'],
 	['.include', '.include ${1:file.cir}', 'Insert another netlist file'],
 	['.hdl', '.hdl ${1:devices.py}', 'Import a Python file with @device models'],
 	['.title', '.title ${1:title}', 'Title (overrides line 1)'],
@@ -111,7 +120,7 @@ const elements: [string, string, string][] = [
 	['R', 'R${1:name} ${2:n1} ${3:n2} ${4:value}', 'Resistor (series branch)'],
 	['L', 'L${1:name} ${2:n1} ${3:n2} ${4:value}', 'Inductor (series branch)'],
 	['C', 'C${1:name} ${2:node} 0 ${3:value}', 'Shunt capacitor to ground'],
-	['X', 'X${1:name} ${2:node} 0 ${3:Model}', 'Device instance'],
+	['X', 'X${1:name} ${2:node} 0 ${3:Model}', 'Device instance (or X name nodes... subckt for a .subckt)'],
 ];
 
 const options: [string, string, string][] = [
@@ -136,7 +145,12 @@ const functions: [string, string, string][] = [
 	['wrap', 'wrap(${1:angle})', 'Angle wrapped to (-pi, pi]'],
 	['par', 'par(\'${1:expr}\')', 'Expression output'],
 	['PWL', 'PWL(${1:0} ${2:1} ${3:t} ${4:v})', 'Piecewise-linear waveform (time value pairs)'],
-	...['sqrt', 'exp', 'log', 'log10', 'sin', 'cos', 'tan', 'atan', 'atan2', 'abs', 'min', 'max', 'pow', 'hypot']
+	['if', 'if(${1:condition}, ${2:then}, ${3:else})', 'Condition true above 0.5'],
+	['limit', 'limit(${1:x}, ${2:low}, ${3:high})', 'x clipped to [low, high]'],
+	['table', 'table(${1:x}, ${2:x1}, ${3:y1}, ${4:x2}, ${5:y2})', 'Piecewise-linear lookup'],
+	...['sqrt', 'exp', 'ln', 'log', 'log10', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sinh', 'cosh',
+		'tanh', 'abs', 'min', 'max', 'pow', 'pwr', 'pwrs', 'hypot', 'cbrt', 'u', 'uramp', 'sgn', 'floor', 'ceil', 'int',
+		'round', 'mod', 'buf', 'inv', 'xor']
 		.map((name): [string, string, string] => [name, `${name}(\${1})`, 'Math function']),
 ];
 
@@ -166,9 +180,22 @@ export const netlistCompletionProvider: vscode.CompletionItemProvider = {
 		const card = head.split(/\s+/)[0]?.toLowerCase() ?? '';
 
 		// Instances in the document, for @xname[state].
+		// .model names of the document resolve to their device (ako: chains followed).
+		const documentModels = new Map<string, string>();
+		for (const match of text.matchAll(/^\s*\.model\s+(\w+)\s+(?:ako:)?([\w.]+)/gim)) {
+			documentModels.set(match[1].toLowerCase(), match[2]);
+		}
+		const subcircuits = [...text.matchAll(/^\s*\.subckt\s+(\w+)/gim)].map((match) => match[1]);
+		const deviceOf = (name: string): string => {
+			let current = name;
+			for (let depth = 0; depth < 20 && documentModels.has(current.toLowerCase()); depth += 1) {
+				current = documentModels.get(current.toLowerCase()) ?? current;
+			}
+			return current;
+		};
 		const instances = new Map<string, string>();
-		for (const match of text.matchAll(/^\s*(X\w*)\s+\S+\s+\S+\s+([\w.]+)/gim)) {
-			instances.set(match[1].toLowerCase(), match[2]);
+		for (const match of text.matchAll(/^\s*(X[\w:]*)\s+\S+\s+\S+\s+([\w.]+)/gim)) {
+			instances.set(match[1].toLowerCase(), deviceOf(match[2]));
 		}
 		const stateMatch = /@(\w+)\[\w*$/.exec(before);
 		if (stateMatch) {
@@ -221,6 +248,12 @@ export const netlistCompletionProvider: vscode.CompletionItemProvider = {
 			for (const [name, model] of Object.entries(models)) {
 				add(name, vscode.CompletionItemKind.Class, name, `${model.port} port · ${model.description}`);
 			}
+			for (const name of documentModels.keys()) {
+				add(name, vscode.CompletionItemKind.Class, name, `.model of ${deviceOf(name)}`, '0');
+			}
+			for (const name of subcircuits) {
+				add(name, vscode.CompletionItemKind.Module, name, '.subckt', '0');
+			}
 			return items;
 		}
 
@@ -228,7 +261,8 @@ export const netlistCompletionProvider: vscode.CompletionItemProvider = {
 		const opened = (before.match(/\{/g)?.length ?? 0) > (before.match(/\}/g)?.length ?? 0);
 		const quoted = (before.match(/'/g)?.length ?? 0) % 2 === 1;
 		const afterValue = /=\s*[^\s=]*$/.test(before);
-		if (opened || quoted || (['.meas', '.measure'].includes(card) && /when/i.test(before))) {
+		if (opened || quoted || (['.meas', '.measure'].includes(card)
+			&& /\b(?:when|find|deriv|avg|max|min|pp|rms|integ|param|trig|targ)\b/i.test(before))) {
 			for (const [label, insert, detail] of functions) {
 				add(label, vscode.CompletionItemKind.Function, insert, detail);
 			}
@@ -256,13 +290,17 @@ export const netlistCompletionProvider: vscode.CompletionItemProvider = {
 			return items;
 		}
 		if (['.meas', '.measure'].includes(card)) {
-			for (const keyword of ['tran', 'WHEN']) {
+			for (const keyword of ['tran', 'WHEN', 'FIND', 'DERIV', 'AVG', 'MAX', 'MIN', 'PP', 'RMS', 'INTEG', 'TRIG', 'TARG',
+				'PARAM', 'LAST']) {
 				add(keyword, vscode.CompletionItemKind.Keyword, keyword, '.meas keyword');
 			}
 			for (const keyword of ['RISE', 'FALL', 'CROSS']) {
-				add(keyword, vscode.CompletionItemKind.Keyword, `${keyword}=1`, 'Crossing direction (first crossing)');
+				add(keyword, vscode.CompletionItemKind.Keyword, `${keyword}=\${1:1}`, 'Crossing direction and count (or LAST)');
 			}
-			add('FROM', vscode.CompletionItemKind.Keyword, 'FROM=${1:0}', 'Detection starts at this time (s)');
+			add('FROM', vscode.CompletionItemKind.Keyword, 'FROM=${1:0}', 'Window / detection start time (s)');
+			add('TO', vscode.CompletionItemKind.Keyword, 'TO=${1:1}', 'Window end time (s)');
+			add('AT', vscode.CompletionItemKind.Keyword, 'AT=${1:0}', 'Time of a FIND / DERIV (s)');
+			add('TD', vscode.CompletionItemKind.Keyword, 'TD=${1:0}', 'Ignore crossings before this time (s)');
 			return items;
 		}
 		if (['.probe', '.save'].includes(card)) {
@@ -275,7 +313,7 @@ export const netlistCompletionProvider: vscode.CompletionItemProvider = {
 
 		// Instance parameters of an X line (on the line itself or a continuation).
 		if (card.startsWith('x')) {
-			const modelName = document.lineAt(headLine).text.trim().split(/\s+/)[3] ?? '';
+			const modelName = deviceOf(document.lineAt(headLine).text.trim().split(/\s+/)[3] ?? '');
 			const model = Object.entries(models).find(([name]) => name.toLowerCase() === modelName.toLowerCase())?.[1];
 			const cardText = document.getText(new vscode.Range(headLine, 0, position.line, position.character));
 			const given = new Set([...cardText.matchAll(/(\w+)\s*=/g)].map((match) => match[1].toLowerCase()));

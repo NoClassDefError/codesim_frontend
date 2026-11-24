@@ -31,11 +31,12 @@
     "cards": {
       "patterns": [
         {
-          "comment": "File name after .include / .hdl.",
-          "match": "^\\s*(\\.(?i:include|inc|hdl))\\s+(\\S+)",
+          "comment": "File name after .include / .lib / .hdl (.lib file [section]).",
+          "match": "^\\s*(\\.(?i:include|inc|lib|hdl))\\s+(\\S+)(?:\\s+(\\w+))?",
           "captures": {
             "1": { "name": "keyword.control.import.spice" },
-            "2": { "name": "string.unquoted.path.spice" }
+            "2": { "name": "string.unquoted.path.spice" },
+            "3": { "name": "entity.name.section.spice" }
           }
         },
         {
@@ -46,8 +47,8 @@
           }
         },
         {
-          "comment": ".meas tran <name> WHEN ...: the measure name is also the event time in PWL knots.",
-          "match": "^\\s*(\\.(?i:meas|measure))\\s+((?i:tran))\\s+(\\w+)",
+          "comment": ".meas [tran] <name> ...: the measure name; the WHEN event name is also the event time in PWL knots.",
+          "match": "^\\s*(\\.(?i:meas|measure))\\s+(?:((?i:tran|ac|dc|noise|op))\\s+)?(\\w+)",
           "captures": {
             "1": { "name": "keyword.control.card.spice" },
             "2": { "name": "keyword.other.analysis.spice" },
@@ -55,8 +56,21 @@
           }
         },
         {
-          "match": "^\\s*(\\.(?i:options|option|opt|param|params|tran|probe|save|end))\\b",
+          "comment": ".model / .subckt / .ends / .func and the name they define.",
+          "match": "^\\s*(\\.(?i:model|subckt|ends|func))\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.control.card.spice" },
+            "2": { "name": "entity.name.type.model.spice" }
+          }
+        },
+        {
+          "match": "^\\s*(\\.(?i:options|option|opt|param|params|tran|probe|save|global|endl|ends|end))\\b",
           "captures": { "1": { "name": "keyword.control.card.spice" } }
+        },
+        {
+          "comment": "LTspice cards CodeSim skips with a warning.",
+          "match": "^\\s*(\\.(?i:ac|dc|noise|tf|four|op|step|temp|wave|backanno|net|fra|ic|nodeset|savestate|loadstate|savebias|text|machine|endmachine))\\b",
+          "captures": { "1": { "name": "invalid.deprecated.ignored-card.spice" } }
         },
         {
           "comment": "Other SPICE cards are not supported by CodeSim.",
@@ -68,8 +82,8 @@
     "elements": {
       "patterns": [
         {
-          "comment": "Xname node+ node- Model: a CodeSim device.",
-          "match": "^\\s*([Xx]\\w*)\\s+([^\\s=]+)\\s+([^\\s=]+)\\s+([\\w.]+)(?!\\s*=)",
+          "comment": "Xname node+ node- Model: a CodeSim device, .model or .subckt.",
+          "match": "^\\s*([Xx][\\w:]*)\\s+([^\\s=]+)\\s+([^\\s=]+)\\s+([\\w.]+)(?!\\s*=)",
           "captures": {
             "1": { "name": "entity.name.tag.device.spice" },
             "2": { "name": "variable.other.node.spice" },
@@ -79,7 +93,7 @@
         },
         {
           "comment": "Rname / Lname / Cname node1 node2 value.",
-          "match": "^\\s*([RrLlCc]\\w*)\\s+([^\\s=]+)\\s+([^\\s=]+)",
+          "match": "^\\s*([RrLlCc][\\w:]*)\\s+([^\\s=]+)\\s+([^\\s=]+)",
           "captures": {
             "1": { "name": "entity.name.tag.passive.spice" },
             "2": { "name": "variable.other.node.spice" },
@@ -88,7 +102,7 @@
         },
         {
           "comment": "Element letters CodeSim does not support.",
-          "match": "^\\s*([A-WYZa-wyz]\\w*)(?=\\s)",
+          "match": "^\\s*([A-WYZa-wyz][\\w:]*)(?=\\s)",
           "captures": { "1": { "name": "invalid.illegal.unsupported-element.spice" } }
         }
       ]
@@ -99,7 +113,7 @@
         { "include": "#braceExpression" },
         { "include": "#quotedExpression" },
         {
-          "match": "\\b((?i:params:|when|rise|fall|cross|from|tran|uic))(?=[\\s=]|$)",
+          "match": "\\b((?i:params:|ako:|when|rise|fall|cross|from|to|tran|uic|find|deriv|at|avg|max|min|pp|rms|integ|trig|targ|val|td|last|param))(?=[\\s=]|$)",
           "captures": { "1": { "name": "keyword.other.spice" } }
         },
         {
@@ -131,7 +145,7 @@
         { "include": "#braceExpression" },
         {
           "comment": "ngspice device internal: @xname[state].",
-          "match": "(@)(\\w+)(\\[)\\s*(\\w+)\\s*(\\])",
+          "match": "(@)([\\w:]+)(\\[)\\s*(\\w+)\\s*(\\])",
           "captures": {
             "1": { "name": "punctuation.definition.variable.spice" },
             "2": { "name": "entity.name.tag.device.spice" },
@@ -141,29 +155,31 @@
           }
         },
         {
-          "comment": "Output functions: V(n) VM(n) VP(n) I(R|L) IM(R|L) P(n) Q(n).",
-          "match": "\\b((?i:vm|vp|v|im|i|p|q))\\s*(\\()\\s*([\\w.+-]+)\\s*(\\))",
+          "comment": "Output functions: V(n) V(n1,n2) VM(n) VP(n) I(R|L) IM(R|L) P(n) Q(n).",
+          "match": "\\b((?i:vm|vp|v|im|i|p|q))\\s*(\\()\\s*([\\w.:+-]+)\\s*(?:(,)\\s*([\\w.:+-]+)\\s*)?(\\))",
           "captures": {
             "1": { "name": "support.function.output.spice" },
             "2": { "name": "punctuation.section.parens.begin.spice" },
             "3": { "name": "variable.other.node.spice" },
-            "4": { "name": "punctuation.section.parens.end.spice" }
+            "4": { "name": "punctuation.separator.spice" },
+            "5": { "name": "variable.other.node.spice" },
+            "6": { "name": "punctuation.section.parens.end.spice" }
           }
         },
         {
-          "match": "\\b((?i:pwl|par|sqrt|exp|log10|log|sin|cos|tan|atan2|atan|abs|min|max|pow|hypot|wrap))(?=\\s*\\()",
+          "match": "\\b((?i:pwl|par|sqrt|exp|ln|log10|log|sinh|cosh|tanh|asin|acos|atan2|atan|sin|cos|tan|abs|min|max|pow|pwrs|pwr|hypot|cbrt|limit|if|uramp|u|sgn|floor|ceil|int|round|mod|buf|inv|xor|table|wrap))(?=\\s*\\()",
           "captures": { "1": { "name": "support.function.spice" } }
         },
-        { "match": "\\b(?i:pi|time)\\b", "name": "constant.language.spice" },
+        { "match": "\\b(?i:pi|time|boltz|echarge|planck|kelvin|gmin)\\b", "name": "constant.language.spice" },
         {
-          "comment": "Numbers with an engineering suffix (f p n u m k meg mil g t) and optional unit letters.",
-          "match": "(?<![\\w.])((?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)((?i:meg|mil|[fpnumkgt])?[A-Za-z]*)",
+          "comment": "Numbers with an engineering suffix (f p n u m k meg mil g t), also as a decimal point (6k34), and optional unit letters.",
+          "match": "(?<![\\w.])((?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)((?i:meg|mil|[fpnumkgt])?(?:\\d+|[A-Za-z]*))",
           "captures": {
             "1": { "name": "constant.numeric.spice" },
             "2": { "name": "keyword.other.unit.suffix.spice" }
           }
         },
-        { "match": "\\*\\*|[-+*/^]", "name": "keyword.operator.arithmetic.spice" },
+        { "match": "\\*\\*|==|!=|<=|>=|&&|\\|\\||[-+*/^%<>!~&|?:]", "name": "keyword.operator.spice" },
         { "match": "=", "name": "keyword.operator.assignment.spice" }
       ]
     }

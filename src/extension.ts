@@ -105,8 +105,8 @@ function detectBackend(directory: string): Backend | undefined {
 	if (fs.existsSync(path.join(directory, 'core', 'system.py'))) {
 		return { cwd: path.dirname(directory), module: 'codesimpy.api.cli' };
 	}
-	if (fs.existsSync(path.join(directory, 'src', 'peslite', 'frontend', 'service.py'))) {
-		return { cwd: directory, module: 'peslite.frontend', pythonPath: path.join(directory, 'src') };
+	if (fs.existsSync(path.join(directory, 'src', 'peslite', 'gui', 'service.py'))) {
+		return { cwd: directory, module: 'peslite.gui', pythonPath: path.join(directory, 'src') };
 	}
 	return undefined;
 }
@@ -1367,6 +1367,11 @@ class CodeSimHost {
 			.filter((field) => field !== 'signals' && record[field] !== undefined && record[field] !== null);
 		if (results.length) {
 			this.log('result', `analysis results: ${results.join(', ')}`);
+		}
+		// Netlist .meas results, one per line as in the LTspice log (null: the measurement failed).
+		const measurements = record.measurements as Record<string, unknown> | undefined;
+		for (const [measure, value] of Object.entries(measurements ?? {})) {
+			this.log('meas', `${measure} = ${typeof value === 'number' ? value.toPrecision(6) : 'FAILED'}`);
 		}
 	}
 
